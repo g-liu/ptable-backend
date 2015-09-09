@@ -1,0 +1,16 @@
+{
+  "name": "ptable-backend",
+  "version": "1.0.0",
+  "description": "Get element data from Wolfram API",
+  "main": "get-element-data.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Geoffrey Liu",
+  "license": "ISC",
+  "dependencies": {
+    "lodash": "^3.10.1",
+    "mathjs": "^2.2.0",
+    "request": "^2.61.0"
+  }
+}
