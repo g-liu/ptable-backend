@@ -179,11 +179,11 @@ function floatWithUnitPreprocessor (key, value) {
 	if (rawUnits.indexOf('/') > -1) {
 		// unit is a ratio
 		units = {
-			numerator: rawUnits.split('/')[0],
-			denominator: /((\w+\s?)+)/.exec(rawUnits.split('/')[1])[0]
+			numerator: rawUnits.split('/')[0].trim(),
+			denominator: /((\w+\s?)+)/.exec(rawUnits.split('/')[1])[0].trim()
 		};
 	} else {
-		units = rawUnits.replace('[note]', '').replace(/\([\w\s]+\)/, '').trim();
+		units = rawUnits.replace('[note]', '').replace(/\(.+\)/, '').trim();
 	}
 
 	return {
@@ -202,7 +202,7 @@ function floatWithUnitPreprocessor (key, value) {
  */
 function percentPreprocessor (key, value) {
 	var sanitizedKey = _.camelCase('percent ' + key.substring(5).replace("'", ''));
-	var sanitizedValue = parseFloat(value.text().replace('×10', 'e'), 10);
+	var sanitizedValue = parseFloat(value.contents().eq(0).text().replace('×10', 'e'), 10);
 	return {
 		key: sanitizedKey,
 		value: {
@@ -272,25 +272,26 @@ function discoveryPreprocessor (key, value) {
 	var sanitizedKey = _.camelCase(key);
 	var intermediateValue = value.text().trim();
 
-	if (intermediateValue === 'N/A') {
+	var discoveryDetails = intermediateValue.splitKeep(' in ', 2);
+	var year = parseInt(discoveryDetails[0], 10);
+
+	if (isNaN(year)) {
 		return {
 			key: sanitizedKey,
 			value: {
 				label: key,
-				value: null
+				year: year,
+				countries: null
 			}
-		}
+		};
 	}
 
-	var discoveryDetails = intermediateValue.splitKeep(' in ', 2);
-
-	var year = parseInt(discoveryDetails[0], 10);
 	if (_.endsWith(discoveryDetails[0], 'BC')) {
 		year = -year;
 	}
 
 	var countries;
-	if (discoveryDetails.length === 1) {
+	if (!discoveryDetails[1].length) {
 		countries = null;
 	} else {
 		countries = discoveryDetails[1].split(' and ');
@@ -312,11 +313,21 @@ function discoveryPreprocessor (key, value) {
  */
 function latticeConstantsPreprocessor (key, value) {
 	var sanitizedKey = _.camelCase(key);
+	var rawValues = value.text().trim().replace('[note]', '');
 
-	var rawValues = value.text().replace('[note]', '').split(' ');
+	if (rawValues === 'N/A') {
+		return {
+			key: sanitizedKey,
+			value: {
+				label: key,
+				value: null
+			}
+		}
+	}
 
 	var sanitizedValue = [];
-	for (var i = 0, len = rawValues.length - 1; i < len; i++) {
+	rawValues = rawValues.split(', ');
+	for (var i = 0, len = rawValues.length; i < len; i++) {
 		var parsedValue = parseFloat(rawValues[i], 10);
 		sanitizedValue.push(parsedValue);
 	}
@@ -331,20 +342,12 @@ function latticeConstantsPreprocessor (key, value) {
 }
 
 /**
- * Returns array: prefix, letter, postfix
- */
-function quantumNumbersPreprocessor (key, value) {
-	
-}
-
-/**
  * Returns the atomic numbers of all isotopes in question
  */
 function isotopesPreprocessor (key, value) {
 	var sanitizedKey = _.camelCase(key);
 	var sanitizedValue = [];
 	value.find('sup').each(function (index, el) {
-		// should be possible to use textContent but no...
 		sanitizedValue.push(parseInt($(this).text(), 10));
 	});
 
@@ -380,7 +383,7 @@ function isotopicAbundancesPreprocessor (key, value) {
 
 function csvPreprocessor (key, value) {
 	var sanitizedKey = _.camelCase(key);
-	var sanitizedValue = value.text().trim().split(', ');
+	var sanitizedValue = value.text().replace('[note]', '').trim().split(', ');
 
 	return {
 		key: sanitizedKey,
@@ -395,7 +398,7 @@ function floatCsvPreprocessor (key, value) {
 	var sanitizedKey = _.camelCase(key);
 	var sanitizedValue = [];
 
-	var values = value.text().trim().split(', ');
+	var values = value.text().replace('[note]', '').trim().split(', ');
 	for (var i = 0, len = values.length; i < len; i++) {
 		var value = parseFloat(values[i].replace('×10', 'e'), 10);
 		if (!isNaN(value)) {
