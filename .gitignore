@@ -1,4 +1,4 @@
-# Created by https://www.gitignore.io/api/node,windows
+# Created by https://www.gitignore.io/api/node,windows,sublimetext
 
 ### Node ###
 # Logs
@@ -51,6 +51,22 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+
+### SublimeText ###
+# cache files for sublime text
+*.tmlanguage.cache
+*.tmPreferences.cache
+*.stTheme.cache
+
+# workspace files are user-specific
+*.sublime-workspace
+
+# project files should be checked into the repository, unless a significant
+# proportion of contributors will probably not be using SublimeText
+# *.sublime-project
+
+# sftp configuration file
+sftp-config.json
 
 # Ignore data
 data
