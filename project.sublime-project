@@ -3,7 +3,11 @@
     [
         {
             "path": ".",
-            "folder_exclude_patterns": [".git", "node_modules"]
+            "folder_exclude_patterns": [
+                ".git",
+                "node_modules",
+                "coverage"
+            ]
         }
     ],
     "settings":

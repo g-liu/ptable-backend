@@ -1,57 +1,66 @@
 var cheerio = require('cheerio');
 var _ = require('lodash');
-var math = require('mathjs');
 
+// dummy cheerio wrapper for DOM manipulation
 $ = cheerio.load('body');
 
+String.prototype.splitKeep = function (delimiter, n) {
+    var parts = this.split(delimiter);
+    return parts.slice(0, n - 1).concat([parts.slice(n - 1).join(delimiter)]);
+}
+
 module.exports = {
+	/**
+	 * call this from external file
+	 */
+	callPreprocessor: function (key, value) {
+		if (typeof preprocessorMappings[key] === 'function') {
+			return preprocessorMappings[key](key, value);
+		} else {
+			return defaultPreprocessor(key, value);
+		}
+	}
+};
+
+var preprocessorMappings = {
 	"Atomic Number": integerPreprocessor,
 	"Atomic Weight": floatPreprocessor,
-	"Density": densityPreprocessor,
-	"Melting Point": temperaturePreprocessor,
-	"Boiling Point": temperaturePreprocessor,
+	"Density": floatWithUnitPreprocessor,
+	"Melting Point": floatWithUnitPreprocessor,
+	"Boiling Point": floatWithUnitPreprocessor,
 
-	"Critical Pressure": pressurePreprocessor,
-	"Critical Temperature": temperaturePreprocessor,
-	"Absolute Melting Point": temperaturePreprocessor,
-	"Absolute Boiling Point": temperaturePreprocessor,
-	/**
-	 * reported as kJ/mol
-	 */
-	"Heat of Fusion": floatPreprocessor,
-	"Heat of Vaporization": floatPreprocessor,
-	/**
-	 * reported as J/(kg K)
-	 */
-	"Heat of Combustion": floatPreprocessor,
-	"Specific Heat": floatPreprocessor,
+	"Critical Pressure": floatWithUnitPreprocessor,
+	"Critical Temperature": floatWithUnitPreprocessor,
+	"Absolute Melting Point": floatWithUnitPreprocessor,
+	"Absolute Boiling Point": floatWithUnitPreprocessor,
+	"Heat of Fusion": floatWithUnitPreprocessor,
+	"Heat of Vaporization": floatWithUnitPreprocessor,
+	"Heat of Combustion": floatWithUnitPreprocessor,
+	"Specific Heat": floatWithUnitPreprocessor,
 	"Adiabatic Index": floatPreprocessor,
-	"Neel Point": temperaturePreprocessor,
-	"Thermal Conductivity": floatPreprocessor,
-	"Thermal Expansion": floatPreprocessor,
+	"Neel Point": floatWithUnitPreprocessor,
+	"Thermal Conductivity": floatWithUnitPreprocessor,
+	"Thermal Expansion": floatWithUnitPreprocessor,
 
-	"Density (Liquid)": densityPreprocessor,
+	"Density (Liquid)": floatWithUnitPreprocessor,
 	"Molar Volume": floatPreprocessor,
-	"Brinell Hardness": pressurePreprocessor,
-	"Mohs Hardness": pressurePreprocessor,
-	"Vickers Hardness": pressurePreprocessor,
-	"Bulk Modulus": pressurePreprocessor,
-	"Shear Modulus": pressurePreprocessor,
-	"Young Modulus": pressurePreprocessor,
+	"Brinell Hardness": floatWithUnitPreprocessor,
+	"Mohs Hardness": floatWithUnitPreprocessor,
+	"Vickers Hardness": floatWithUnitPreprocessor,
+	"Bulk Modulus": floatWithUnitPreprocessor,
+	"Shear Modulus": floatWithUnitPreprocessor,
+	"Young Modulus": floatWithUnitPreprocessor,
 	"Poisson Ratio": floatPreprocessor,
 	"Refractive Index": floatPreprocessor,
-	"Speed of Sound": floatPreprocessor,
+	"Speed of Sound": floatWithUnitPreprocessor,
 
 	"Valence": integerPreprocessor,
 	"Electronegativity": floatPreprocessor,
-	/**
-	 * Reported as kJ/mol
-	 */
-	"ElectronAffinity": floatPreprocessor,
+	"ElectronAffinity": floatWithUnitPreprocessor,
 	"Ionization Energies": floatCsvPreprocessor,
 
-	"Autoignition Point": temperaturePreprocessor,
-	"Flashpoint": temperaturePreprocessor,
+	"Autoignition Point": floatWithUnitPreprocessor,
+	"Flashpoint": floatWithUnitPreprocessor,
 	"DOT Numbers": integerPreprocessor,
 	"NFPA Fire Rating": integerPreprocessor,
 	"NFPA Health Rating": integerPreprocessor,
@@ -60,13 +69,14 @@ module.exports = {
 
 	"Group": integerPreprocessor,
 	"Period": integerPreprocessor,
+	"Electron Configuration": electronConfigurationPreprocessor,
 	"Discovery": discoveryPreprocessor,
 
-	"Electrical Conductivity": floatPreprocessor,
-	"Resistivity": floatPreprocessor,
+	"Electrical Conductivity": floatWithUnitPreprocessor,
+	"Resistivity": floatWithUnitPreprocessor,
 	"Superconducting Point": floatPreprocessor,
 
-	"Curie Point": temperaturePreprocessor,
+	"Curie Point": floatWithUnitPreprocessor,
 	"Mass Magnetic Susceptibility": floatPreprocessor,
 	"Molar Magnetic Susceptibility": floatPreprocessor,
 	"Volume Magnetic Susceptibility": floatPreprocessor,
@@ -81,32 +91,20 @@ module.exports = {
 	/**
 	 * reported in pm
 	 */
-	"Atomic Radius": floatPreprocessor,
-	"Covalent Radius": floatPreprocessor,
-	"Van der Waals Radius": floatPreprocessor,
+	"Atomic Radius": floatWithUnitPreprocessor,
+	"Covalent Radius": floatWithUnitPreprocessor,
+	"Van der Waals Radius": floatWithUnitPreprocessor,
 	"Lattice Angles": csvPreprocessor,
-	"Lattice Constants": csvPreprocessor,
+	"Lattice Constants": latticeConstantsPreprocessor,
 	"Space Group Number": integerPreprocessor,
 
-	"Half-Life": durationPreprocessor,
-	"Lifetime": durationPreprocessor,
-	"Decay Mode": decayModePreprocessor,
+	"Half-Life": floatWithUnitPreprocessor,
+	"Lifetime": floatWithUnitPreprocessor,
 	"Neutron Cross Section": floatPreprocessor,
 	"Neutron Mass Absorption": floatPreprocessor,
 	"Known Isotopes": isotopesPreprocessor,
 	"Stable Isotopes": isotopesPreprocessor,
-	"Isotopic Abundances": isotopicAbundancesPreprocessor,
-
-	/**
-	 * call this from external file
-	 */
-	getPreprocessor: function (key, value) {
-		if (typeof this[key] === 'function') {
-			return this[key];
-		} else {
-			return defaultPreprocessor;
-		}
-	}
+	"Isotopic Abundances": isotopicAbundancesPreprocessor
 };
 
 /**
@@ -120,7 +118,10 @@ function defaultPreprocessor (key, value) {
 	}
 	return {
 		key: sanitizedKey,
-		value: sanitizedValue
+		value: {
+			label: key,
+			value: sanitizedValue
+		}
 	};
 }
 
@@ -130,50 +131,70 @@ function integerPreprocessor (key, value) {
 
 	return {
 		key: sanitizedKey,
-		value: sanitizedValue
-	};
-}
-
-function pressurePreprocessor (key, value) {
-	var sanitizedKey = _.camelCase(key);
-	var sanitizedValue = parseFloat(value.text().replace('×10', 'e'));
-	var units = value.text().split(' ')[1];
-
-	if (units === 'GPa') {
-		sanitizedValue /= 1e9;
-	} else if (units === 'MPa') {
-		sanitizedValue /= 1e6;
-	} else if (units === 'kPa') {
-		sanitizedValue /= 1e3;
-	}
-
-	return {
-		key: sanitizedKey,
-		value: sanitizedValue
+		value: {
+			label: key,
+			value: sanitizedValue
+		}
 	};
 }
 
 /**
- * Value is standardized to kelvin, the default SI unit
+ * Use for dimensionless quantities
  */
-function temperaturePreprocessor (key, value) {
+function floatPreprocessor (key, value) {
 	var sanitizedKey = _.camelCase(key);
-
-	var valueUnit = value.text()[value.text().length - 1];
 	var sanitizedValue = parseFloat(value.text().replace('×10', 'e'), 10);
 
-	if (valueUnit === 'C') {
-		sanitizedValue += 273.15;
-	} else if (valueUnit === 'F') {
-		sanitizedValue = (sanitizedValue + 459.67) * 5 / 9;
+	return {
+		key: sanitizedKey,
+		value: {
+			label: key,
+			value: sanitizedValue
+		}
+	};
+}
+
+/**
+ * Use for quantities with unit
+ */
+function floatWithUnitPreprocessor (key, value) {
+	var sanitizedKey = _.camelCase(key);
+	var rawQuantity = value.text().trim().splitKeep(' ', 2);
+
+	var sanitizedValue = parseFloat(rawQuantity[0].replace('×10', 'e'), 10);
+
+	if (isNaN(sanitizedValue)) {
+		return {
+			key: sanitizedKey,
+			value: {
+				label: key,
+				value: sanitizedValue
+			}
+		};
+	}
+
+	var rawUnits = rawQuantity[1].trim();
+	var units;
+
+	if (rawUnits.indexOf('/') > -1) {
+		// unit is a ratio
+		units = {
+			numerator: rawUnits.split('/')[0],
+			denominator: /((\w+\s?)+)/.exec(rawUnits.split('/')[1])[0]
+		};
+	} else {
+		units = rawUnits.replace('[note]', '').replace(/\([\w\s]+\)/, '').trim();
 	}
 
 	return {
 		key: sanitizedKey,
-		value: sanitizedValue
+		value: {
+			label: key,
+			value: sanitizedValue,
+			units: units
+		}
 	};
 }
-
 
 /**
  * Processes any percentages
@@ -184,71 +205,63 @@ function percentPreprocessor (key, value) {
 	var sanitizedValue = parseFloat(value.text().replace('×10', 'e'), 10);
 	return {
 		key: sanitizedKey,
-		value: sanitizedValue
-	};
-}
-
-function floatPreprocessor (key, value) {
-	var sanitizedKey = _.camelCase(key);
-	var sanitizedValue = parseFloat(value.text().replace('×10', 'e'), 10);
-	return {
-		key: sanitizedKey,
-		value: sanitizedValue
+		value: {
+			label: key,
+			value: sanitizedValue
+		}
 	};
 }
 
 /**
- * Returns density in SI units (kg/m^3)
+ * Relative path to the NFPA label image
  */
-function densityPreprocessor (key, value) {
-	var sanitizedResults = floatPreprocessor(key, value);
-	var sanitizedValue = sanitizedResults.value;
-
-	var units = value.text().split(' ')[1].split('/');
-	var massUnits = units[0];
-	var volumeUnits = units[1];
-
-	if (massUnits === 'g') {
-		sanitizedValue /= 1e3;
-	} // other units here if necessary
-
-	if (volumeUnits === 'cm3') {
-		sanitizedValue *= 1e6;
-	}
-
-	return {
-		key: sanitizedResults.key,
-		value: sanitizedValue
-	}
-}
-
-/**
- * Returns duration in seconds
- */
-function durationPreprocessor (key, value) {
-	var sanitizedKey = _.camelCase(key);
-	var sanitizedValue = parseFloat(value.text().trim().replace('×10', 'e'), 10);
-
-	var unit = value.text()[value.text().length - 1];
-	if (unit === 'y') {
-		sanitizedValue *= 3.154e7;
-	} else if (unit === 'd') {
-		sanitizedValue *= 86400;
-	} else if (unit === 'h') {
-		sanitizedValue *= 3600;
-	} else if (unit === 'm') {
-		sanitizedValue *= 60;
-	}
-
-	return {
-		key: sanitizedKey,
-		value: sanitizedValue
-	};
-}
-
 function nfpaLabelPreprocessor (key, value) {
-	// for now, ignore this
-	return {};
+	return {
+		key: _.camelCase(key),
+		value: {
+			label: key,
+			value: value.find('img').first().attr('src')
+		}
+	}
+}
+
+function electronConfigurationPreprocessor (key, value) {
+	var sanitizedKey = _.camelCase(key);
+	var sanitizedValue = {
+		base: null,
+		shells: {}
+	};
+
+	var shell;
+	var electronCount;
+
+	var firstNode = value.contents().eq(0);
+	if (firstNode.text().indexOf(']') > -1) {
+		var firstSplit = firstNode.text().split(']');
+		sanitizedValue.base = firstSplit[0].substring(1);
+		shell = firstSplit[1];
+	} else {
+		shell = firstNode.text();
+	}
+
+	var configuration = value.contents().slice(1);
+
+	configuration.each(function (index, elem) {
+		if ($(this).get(0).tagName === 'sup' && $(this).text() != '[note]') {
+			electronCount = parseInt($(this).text(), 10);
+			sanitizedValue.shells[shell] = electronCount;
+		} else {
+			shell = $(this).text();
+		}
+	});
+
+	return {
+		key: sanitizedKey,
+		value: {
+			label: key,
+			value: sanitizedValue
+		}
+	};
 }
 
 /**
@@ -262,12 +275,14 @@ function discoveryPreprocessor (key, value) {
 	if (intermediateValue === 'N/A') {
 		return {
 			key: sanitizedKey,
-			value: null,
-			multiple: false
+			value: {
+				label: key,
+				value: null
+			}
 		}
 	}
 
-	var discoveryDetails = intermediateValue.split(' in ');
+	var discoveryDetails = intermediateValue.splitKeep(' in ', 2);
 
 	var year = parseInt(discoveryDetails[0], 10);
 	if (_.endsWith(discoveryDetails[0], 'BC')) {
@@ -282,19 +297,36 @@ function discoveryPreprocessor (key, value) {
 	}
 
 	return {
-		key: ['discoveryYear', 'discoveryCountries'],
-		value: [year, countries],
-		multiple: true
+		key: sanitizedKey,
+		value: {
+			label: key,
+			year: year,
+			countries: countries
+		}
 	};
 }
 
-function decayModePreprocessor (key, value) {
+
+/**
+ * in pm unless otherwise stated
+ */
+function latticeConstantsPreprocessor (key, value) {
 	var sanitizedKey = _.camelCase(key);
-	var sanitizedValue = value.text() === "N/A" ? null : value.text();
+
+	var rawValues = value.text().replace('[note]', '').split(' ');
+
+	var sanitizedValue = [];
+	for (var i = 0, len = rawValues.length - 1; i < len; i++) {
+		var parsedValue = parseFloat(rawValues[i], 10);
+		sanitizedValue.push(parsedValue);
+	}
 
 	return {
 		key: sanitizedKey,
-		value: sanitizedValue
+		value: {
+			label: key,
+			value: sanitizedValue
+		}
 	};
 }
 
@@ -317,8 +349,11 @@ function isotopesPreprocessor (key, value) {
 	});
 
 	return {
-		key: sanitizedKey,
-		value: sanitizedValue
+ 		key: sanitizedKey,
+		value: {
+			label: key,
+			value: sanitizedValue
+		}
 	};
 }
 
@@ -336,7 +371,10 @@ function isotopicAbundancesPreprocessor (key, value) {
 
 	return {
 		key: sanitizedKey,
-		value: sanitizedValue
+		value: {
+			label: key,
+			value: sanitizedValue
+		}
 	};
 }
 
@@ -346,7 +384,10 @@ function csvPreprocessor (key, value) {
 
 	return {
 		key: sanitizedKey,
-		value: sanitizedValue
+		value: {
+			label: key,
+			value: sanitizedValue
+		}
 	};
 }
 
@@ -364,7 +405,10 @@ function floatCsvPreprocessor (key, value) {
 
 	return {
 		key: sanitizedKey,
-		value: sanitizedValue
+		value: {
+			label: key,
+			value: sanitizedValue
+		}
 	};
 }
 

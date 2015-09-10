@@ -1,4 +1,5 @@
 var fs = require('fs');
+var _ = require('lodash');
 var cheerio = require('cheerio');
 var http = require('http');
 var request = require('request');
@@ -20,53 +21,49 @@ var requiredData = [
 
 var preproc = require('./data-preprocessors.js');
 
-function preprocessData(rawKey, rawValue) {
-	var processedKey = rawKey.split(' ').join('');
-	var processedValue = rawValue;
-	return {key: processedKey, value: processedValue};
+/**
+ * Retrieves the element by its atomic number
+ */
+function getElementByAtomicNumber (num) {
+	var formattedNum = _.padLeft(num, 3, '000');
+
+	console.log("Requesting data for element", num);
+	request('http://periodictable.com/Elements/' + formattedNum + '/data.html', function (err, response, body) {
+		console.log("data received for", num);
+		if (err || response.statusCode != 200) return;
+
+		var elementProperties = {};
+
+		// read contents
+		var $ = cheerio.load(body);
+
+		for (var i = 0; i < requiredData.length; i++) {
+			$('b:contains("' + requiredData[i] + '")')
+				.last()
+				.parents('tr')
+				.first()
+				.nextAll() // all subsequent rows
+				.each(function (index, el) {
+					var dataCols = $(el).children('td');
+					if (dataCols.length === 1) return false;
+
+					var sanitizedPair = preproc.callPreprocessor(
+						dataCols.first().text(),
+						dataCols.last());
+
+					elementProperties[sanitizedPair.key] = sanitizedPair.value;
+				});
+		}
+
+		fs.writeFile('data/' + formattedNum + '.json',
+			JSON.stringify(elementProperties, null, 4),
+			function (err) {
+				if (err) throw err;
+				console.log("Saved result for element", num);
+			});	
+	});
 }
 
-console.log("Sending request for element data...");
-request('http://periodictable.com/Elements/077/data.html', function (err, response, body) {
-	console.log("data received");
-	if (err || response.statusCode != 200) return;
-
-	var elementProperties = {};
-
-	// read contents
-	var $ = cheerio.load(body);
-
-	for (var i = 0; i < requiredData.length; i++) {
-		$('b:contains("' + requiredData[i] + '")')
-			.last()
-			.parents('tr')
-			.first()
-			.nextAll() // all subsequent rows
-			.each(function (index, el) {
-				var dataCols = $(el).children('td');
-				if (dataCols.length === 1) return false;
-
-				var sanitizationFunction = preproc.getPreprocessor(dataCols.first().text());
-
-				var sanitizedPair = sanitizationFunction(
-						dataCols.first().text(),
-						dataCols.last()
-					);
-
-				if (!sanitizedPair.multiple) {
-					elementProperties[sanitizedPair.key] = sanitizedPair.value;
-				} else {
-					for (var i = 0, len = sanitizedPair.key.length; i < len; i++) {
-						elementProperties[sanitizedPair.key[i]] = sanitizedPair.value[i];
-					}
-				}
-			});
-	}
-
-	fs.writeFile('data/077.json',
-		JSON.stringify(elementProperties, null, 4),
-		function (err) {
-			if (err) throw err;
-			console.log("Saved result");
-		});	
-});
+for (var i = 1; i <= 118; i++) {
+	getElementByAtomicNumber(i);
+}
