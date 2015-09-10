@@ -349,7 +349,7 @@ describe("Percent preprocessor", function () {
 });
 
 describe("NFPA Label preprocessor", function () {
-	it("Should return the relative path to the NFPA label", function () {
+	it("should return the relative path to the NFPA label image", function () {
 		var dummyKey = "NFPA Label";
 		var $ = cheerio.load('<td align="left">' +
 			'<img alt="NFPA Label" width="100" height="100" src="../../Elements/002/NFPALabel.gif">' +
@@ -360,6 +360,18 @@ describe("NFPA Label preprocessor", function () {
 
 		expect(preprocRtn.key).to.equal('nfpaLabel');
 		expect(preprocRtn.value.value).to.equal('../../Elements/002/NFPALabel.gif');
+		expect(preprocRtn.value.label).to.equal('NFPA Label');
+	});
+
+	it("should return null if no image available", function () {
+		var dummyKey = "NFPA Label";
+		var $ = cheerio.load('<td align="left">N/A</td>');
+		var dummyValue = $('td');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.key).to.equal('nfpaLabel');
+		expect(preprocRtn.value.value).to.be.null;
 		expect(preprocRtn.value.label).to.equal('NFPA Label');
 	});
 });
@@ -644,7 +656,7 @@ describe("Lattice angles preprocessor", function () {
 
 		expect(preprocRtn.key).to.equal('latticeConstants');
 		expect(preprocRtn.value.value).to.deep.equal([224]);
-		expect(preprocRtn.value.label).to.deep.equal('Lattice Constants');
+		expect(preprocRtn.value.label).to.equal('Lattice Constants');
 	});
 
 	it("handles single constant correctly with annotation", function () {
@@ -658,7 +670,7 @@ describe("Lattice angles preprocessor", function () {
 
 		expect(preprocRtn.key).to.equal('latticeConstants');
 		expect(preprocRtn.value.value).to.deep.equal([224]);
-		expect(preprocRtn.value.label).to.deep.equal('Lattice Constants');
+		expect(preprocRtn.value.label).to.equal('Lattice Constants');
 	});
 
 	it("handles multiple constants correctly", function () {
@@ -675,7 +687,7 @@ describe("Lattice angles preprocessor", function () {
 			330.4,
 			111.1111
 		]);
-		expect(preprocRtn.value.label).to.deep.equal('Lattice Constants');
+		expect(preprocRtn.value.label).to.equal('Lattice Constants');
 	});
 
 	it("handles multiple constants correctly with annotation", function () {
@@ -694,7 +706,7 @@ describe("Lattice angles preprocessor", function () {
 			330.4,
 			111.1111
 		]);
-		expect(preprocRtn.value.label).to.deep.equal('Lattice Constants');
+		expect(preprocRtn.value.label).to.equal('Lattice Constants');
 	});
 
 	it("handles no constants correctly", function () {
@@ -706,7 +718,7 @@ describe("Lattice angles preprocessor", function () {
 
 		expect(preprocRtn.key).to.equal('latticeConstants');
 		expect(preprocRtn.value.value).to.be.null;
-		expect(preprocRtn.value.label).to.deep.equal('Lattice Constants');
+		expect(preprocRtn.value.label).to.equal('Lattice Constants');
 	});
 
 	it("handles no constants correctly with annotation", function () {
@@ -720,16 +732,433 @@ describe("Lattice angles preprocessor", function () {
 
 		expect(preprocRtn.key).to.equal('latticeConstants');
 		expect(preprocRtn.value.value).to.be.null;
-		expect(preprocRtn.value.label).to.deep.equal('Lattice Constants');
+		expect(preprocRtn.value.label).to.equal('Lattice Constants');
 	});
 });
 
-describe('Scientific notation', function () {
-	it('is handled correctly by default preprocessor', function () {
+describe("Quantum numbers preprocessor", function () {
+	it("handles term symbol with integer orbital quantum number", function () {
+		var dummyKey = "Quantum Numbers";
+		var $ = cheerio.load('<td><sup>5</sup>P<sub>4</sub></td>');
+		var dummyValue = $('td');
 
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.key).to.equal('quantumNumbers');
+		expect(preprocRtn.value.value).to.deep.equal({
+			spinMultiplicity: 5,
+			angularMomentum: 'P',
+			orbital: '4'
+		});
+		expect(preprocRtn.value.label).to.equal('Quantum Numbers');
 	});
 
-	it('is handled correctly by percent preprocessor', function () {
+	it("handles term symbol with integer orbital quantum number with annotation", function () {
+		var dummyKey = "Quantum Numbers";
+		var $ = cheerio.load('<td><sup>5</sup>P<sub>4</sub>' +
+			'<sup><a href="#112.QuantumNumbers.note">[note]</a></sup>' +
+			'</td>');
+		var dummyValue = $('td');
 
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.key).to.equal('quantumNumbers');
+		expect(preprocRtn.value.value).to.deep.equal({
+			spinMultiplicity: 5,
+			angularMomentum: 'P',
+			orbital: '4'
+		});
+		expect(preprocRtn.value.label).to.equal('Quantum Numbers');
+	});
+
+	it("handles term symbol with fractional orbital quantum number", function () {
+		var dummyKey = "Quantum Numbers";
+		var $ = cheerio.load('<td><sup>4</sup>S<sub>11/5</sub></td>');
+		var dummyValue = $('td');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.key).to.equal('quantumNumbers');
+		expect(preprocRtn.value.value).to.deep.equal({
+			spinMultiplicity: 4,
+			angularMomentum: 'S',
+			orbital: '11/5'
+		});
+		expect(preprocRtn.value.label).to.equal('Quantum Numbers');
+	});
+
+	it("handles term symbol with integer orbital quantum number with annotation", function () {
+		var dummyKey = "Quantum Numbers";
+		var $ = cheerio.load('<td><sup>4</sup>D<sub>15/4</sub>' +
+			'<sup><a href="#104.QuantumNumbers.note">[note]</a></sup>' +
+			'</td>');
+		var dummyValue = $('td');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.key).to.equal('quantumNumbers');
+		expect(preprocRtn.value.value).to.deep.equal({
+			spinMultiplicity: 4,
+			angularMomentum: 'D',
+			orbital: '15/4'
+		});
+		expect(preprocRtn.value.label).to.equal('Quantum Numbers');
+	});
+});
+
+describe("Isotopes preprocessor", function () {
+	it("handles one isotope correctly", function () {
+		var dummyKey = "Known Isotopes";
+		var $ = cheerio.load('<td>' +
+			'<table><tbody><tr>' +
+			'<td><a href="../../Isotopes/080.171/index.html"><sup>171</sup>Hg</a></td>' +
+			'</tr></tbody></table>' +
+			'</td>');
+		var dummyValue = $('*');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.key).to.equal('knownIsotopes');
+		expect(preprocRtn.value.value).to.deep.equal([171]);
+		expect(preprocRtn.value.label).to.equal('Known Isotopes');
+	});
+
+	it("handles many isotopes correctly", function () {
+		var dummyKey = "Known Isotopes";
+		var $ = cheerio.load('<td>' +
+			'<table><tbody><tr><td>' +
+			'<a href="../../Isotopes/080.171/index.html"><sup>171</sup>Hg</a>, ' +
+			'<a href="../../Isotopes/080.172/index.html"><sup>172</sup>Hg</a>, ' +
+			'<a href="../../Isotopes/080.173/index.html"><sup>173</sup>Hg</a>, ' +
+			'<a href="../../Isotopes/080.174/index.html"><sup>174</sup>Hg</a>, ' +
+			'<a href="../../Isotopes/080.175/index.html"><sup>175</sup>Hg</a>, ' +
+			'<a href="../../Isotopes/080.176/index.html"><sup>176</sup>Hg</a>, ' +
+			'<a href="../../Isotopes/080.180/index.html"><sup>180</sup>Hg</a>' +
+			'</td></tr></tbody></table>' +
+			'</td>');
+		var dummyValue = $('*');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.key).to.equal('knownIsotopes');
+		expect(preprocRtn.value.value).to.deep.equal([
+			171,
+			172,
+			173,
+			174,
+			175,
+			176,
+			180
+		]);
+		expect(preprocRtn.value.label).to.equal('Known Isotopes');
+	});
+});
+
+describe("Isotopic abundances preprocessor", function () {
+	it("handles single isotope correctly", function () {
+		var dummyKey = "Isotopic Abundances";
+		var $ = cheerio.load('<td valign="top" align="left">' +
+			'<table border="0" cellpadding="2" cellspacing="0">' +
+			'<tbody>' +
+			'<tr>' +
+			'<td><a href="../../Isotopes/033.75/index.html"><sup>75</sup>As</a></td>' +
+			'<td>100%</td>' +
+			'</tr>' +
+			'</tbody>' +
+			'</table></td>');
+
+		var dummyValue = $('*');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.key).to.equal('isotopicAbundances');
+		expect(preprocRtn.value.value).to.deep.equal({
+			"75": 100
+		});
+		expect(preprocRtn.value.label).to.equal('Isotopic Abundances');
+	});
+
+	it("handles multiple isotopes correctly", function () {
+		var dummyKey = "Isotopic Abundances";
+		var $ = cheerio.load('<td valign="top" align="left">' +
+			'<table border="0" cellpadding="2" cellspacing="0">' +
+			'<tbody><tr>' +
+			'<td><a href="../../Isotopes/034.74/index.html"><sup>74</sup>Se</a></td>' +
+			'<td>0.89%</td>' +
+			'</tr><tr>' +
+			'<td><a href="../../Isotopes/034.76/index.html"><sup>76</sup>Se</a></td>' +
+			'<td>9.37%</td>' +
+			'</tr><tr>' +
+			'<td><a href="../../Isotopes/034.77/index.html"><sup>77</sup>Se</a></td>' +
+			'<td>7.63%</td>' +
+			'</tr><tr>' +
+			'<td><a href="../../Isotopes/034.78/index.html"><sup>78</sup>Se</a></td>' +
+			'<td>23.77%</td>' +
+			'</tr><tr>' +
+			'<td><a href="../../Isotopes/034.80/index.html"><sup>80</sup>Se</a></td>' +
+			'<td>49.61%</td>' +
+			'</tr><tr>' +
+			'<td><a href="../../Isotopes/034.82/index.html"><sup>82</sup>Se</a></td>' +
+			'<td>8.73%</td>' +
+			'</tr></tbody>' +
+			'</table></td>');
+
+		var dummyValue = $('*');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.key).to.equal('isotopicAbundances');
+		expect(preprocRtn.value.value).to.deep.equal({
+			"74": 0.89,
+            "76": 9.37,
+            "77": 7.63,
+            "78": 23.77,
+            "80": 49.61,
+            "82": 8.73
+		});
+		expect(preprocRtn.value.label).to.equal('Isotopic Abundances');
+	});
+
+	it("handles no isotopes correctly", function () {
+		var dummyKey = "Isotopic Abundances";
+		var $ = cheerio.load('<td valign="top" align="left"></td>');
+
+		var dummyValue = $('*');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.key).to.equal('isotopicAbundances');
+		expect(preprocRtn.value.value).to.be.null;
+		expect(preprocRtn.value.label).to.equal('Isotopic Abundances');
+	});
+});
+
+describe("CSV preprocessor", function () {
+	it("handles a single value correctly", function () {
+		var dummyKey = "Lattice Angles";
+		var $ = cheerio.load('<td>π/2</td>');
+
+		var dummyValue = $('td');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.key).to.equal('latticeAngles');
+		expect(preprocRtn.value.value).to.deep.equal(['π/2']);
+		expect(preprocRtn.value.label).to.equal('Lattice Angles');
+	});
+
+	it("handles multiple values correctly", function () {
+		var dummyKey = "Lattice Angles";
+		var $ = cheerio.load('<td>π/2, 0.014126, π/9.140, 4, donkey</td>');
+
+		var dummyValue = $('td');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.key).to.equal('latticeAngles');
+		expect(preprocRtn.value.value).to.deep.equal([
+			'π/2',
+			'0.014126',
+			'π/9.140',
+			'4',
+			'donkey'
+		]);
+		expect(preprocRtn.value.label).to.equal('Lattice Angles');
+	});
+
+	it("handles no values correctly", function () {
+		var dummyKey = "Lattice Angles";
+		var $ = cheerio.load('<td>N/A</td>');
+
+		var dummyValue = $('td');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.key).to.equal('latticeAngles');
+		expect(preprocRtn.value.value).to.be.null;
+		expect(preprocRtn.value.label).to.equal('Lattice Angles');
+	})
+});
+
+describe("Float CSV with unit preprocessor", function () {
+	it("handles a single value correctly", function () {
+		var dummyKey = "Ionization Energies";
+		var $ = cheerio.load('<td>2372.3 kJ/mol</td>');
+
+		var dummyValue = $('td');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.key).to.equal('ionizationEnergies');
+		expect(preprocRtn.value.value).to.deep.equal([2372.3]);
+		expect(preprocRtn.value.units).to.deep.equal({
+			numerator: 'kJ',
+			denominator: 'mol'
+		});
+		expect(preprocRtn.value.label).to.equal('Ionization Energies');
+	});
+
+	it("handles a single value with annotation correctly", function () {
+		var dummyKey = "Ionization Energies";
+		var $ = cheerio.load('<td>2372.3 kJ/mol' +
+			'<a href="#Helium.IonizationEnergies.note">[note]</a>' +
+			'</td>');
+
+		var dummyValue = $('td');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.key).to.equal('ionizationEnergies');
+		expect(preprocRtn.value.value).to.deep.equal([2372.3]);
+		expect(preprocRtn.value.units).to.deep.equal({
+			numerator: 'kJ',
+			denominator: 'mol'
+		});
+		expect(preprocRtn.value.label).to.equal('Ionization Energies');
+	});
+
+	it("handles multiple values correctly", function () {
+		var dummyKey = "Ionization Energies";
+		var $ = cheerio.load('<td>593.4, 1170, 1990, 4250 kJ/mol</td>');
+
+		var dummyValue = $('td');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.key).to.equal('ionizationEnergies');
+		expect(preprocRtn.value.value).to.deep.equal([
+			593.4,
+			1170,
+			1990,
+			4250
+		]);
+		expect(preprocRtn.value.units).to.deep.equal({
+			numerator: 'kJ',
+			denominator: 'mol'
+		});
+		expect(preprocRtn.value.label).to.equal('Ionization Energies');
+	});
+
+	it("handles multiple values with annotation correctly", function () {
+		var dummyKey = "Ionization Energies";
+		var $ = cheerio.load('<td>593.4, 1170, 1990, 4250 kJ/mol' +
+			'<a href="#Gadolinium.IonizationEnergies.note">[note]</a>' +
+			'</td>');
+
+		var dummyValue = $('td');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.key).to.equal('ionizationEnergies');
+		expect(preprocRtn.value.value).to.deep.equal([
+			593.4,
+			1170,
+			1990,
+			4250
+		]);
+		expect(preprocRtn.value.units).to.deep.equal({
+			numerator: 'kJ',
+			denominator: 'mol'
+		});
+		expect(preprocRtn.value.label).to.equal('Ionization Energies');
+	});
+
+	it("handles no values correctly", function () {
+		var dummyKey = "Ionization Energies";
+		var $ = cheerio.load('<td>N/A</td>');
+
+		var dummyValue = $('td');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.key).to.equal('ionizationEnergies');
+		expect(preprocRtn.value.value).to.be.null;
+		expect(preprocRtn.value.units).to.be.undefined;
+		expect(preprocRtn.value.label).to.equal('Ionization Energies');
+	});
+
+	it("handles no values with annotation correctly", function () {
+		var dummyKey = "Ionization Energies";
+		var $ = cheerio.load('<td>N/A' +
+			'<a href="#Ununoctium.IonizationEnergies.note">[note]</a>' +
+			'</td>');
+
+		var dummyValue = $('td');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.key).to.equal('ionizationEnergies');
+		expect(preprocRtn.value.value).to.be.null;
+		expect(preprocRtn.value.units).to.be.undefined;
+		expect(preprocRtn.value.label).to.equal('Ionization Energies');
+	});
+});
+
+describe("Scientific notation", function () {
+	it("is handled correctly by default preprocessor", function () {
+		var dummyKey = "Some Property";
+		var $ = cheerio.load('<td>5.5×10<sup>4</sup></td>');
+		var dummyValue = $('td');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.value.value).to.equal('5.5×104');
+	});
+
+	it("is handled correctly by percent preprocessor", function () {
+		var dummyKey = "% in Oceans";
+		var $ = cheerio.load('<td>2.5×10<sup>-7</sup>%</td>');
+		var dummyValue = $('td');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.value.value).to.equal(2.5e-7);
+	});
+
+	it("is handled correctly by integer preprocessor", function () {
+		var dummyKey = "Valence";
+		var $ = cheerio.load('<td>8.845×10<sup>10</sup></td>');
+		var dummyValue = $('td');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.value.value).to.equal(8.845e10);
+	});
+
+	it("is handled correctly by float preprocessor", function () {
+		var dummyKey = "Electronegativity";
+		var $ = cheerio.load('<td>2.91919×10<sup>-3</sup></td>');
+		var dummyValue = $('td');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.value.value).to.equal(2.91919e-3);
+	});
+
+	it("is handled correctly by float with unit preprocessor", function () {
+		var dummyKey = "ElectronAffinity";
+		var $ = cheerio.load('<td>6.241×10<sup>-4</sup> cm/(W K)</td>');
+		var dummyValue = $('td');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.value.value).to.equal(6.241e-4);
+	});
+
+	it("is handled correctly by float CSV with unit preprocessor", function () {
+		var dummyKey = "Ionization Energies";
+		var $ = cheerio.load('<td>6.241×10<sup>-4</sup>, '+
+			'5×10<sup>13</sup>, ' +
+			'1.234×10<sup>4</sup> ' +
+			'in/(Cd Ohm)</td>');
+		var dummyValue = $('td');
+
+		var preprocRtn = preproc.callPreprocessor(dummyKey, dummyValue);
+
+		expect(preprocRtn.value.value).to.deep.equal([
+			6.241e-4,
+			5e13,
+			1.234e4
+		]);
 	});
 });

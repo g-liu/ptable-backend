@@ -4,7 +4,8 @@
   "description": "Get element data from periodictable.com",
   "main": "get-element-data.js",
   "scripts": {
-    "test": "istanbul cover node_modules/mocha/bin/_mocha -- -R spec"
+    "test": "istanbul cover node_modules/mocha/bin/_mocha -- -R spec",
+    "start": "node ./get-element-data.js"
   },
   "author": "Geoffrey Liu",
   "license": "ISC",

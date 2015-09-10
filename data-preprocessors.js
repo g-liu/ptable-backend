@@ -57,7 +57,7 @@ var preprocessorMappings = {
 	"Valence": integerPreprocessor,
 	"Electronegativity": floatPreprocessor,
 	"ElectronAffinity": floatWithUnitPreprocessor,
-	"Ionization Energies": floatCsvPreprocessor,
+	"Ionization Energies": floatCsvWithUnitPreprocessor,
 
 	"Autoignition Point": floatWithUnitPreprocessor,
 	"Flashpoint": floatWithUnitPreprocessor,
@@ -88,9 +88,6 @@ var preprocessorMappings = {
 	"% in Oceans": percentPreprocessor,
 	"% in Humans": percentPreprocessor,
 
-	/**
-	 * reported in pm
-	 */
 	"Atomic Radius": floatWithUnitPreprocessor,
 	"Covalent Radius": floatWithUnitPreprocessor,
 	"Van der Waals Radius": floatWithUnitPreprocessor,
@@ -100,6 +97,7 @@ var preprocessorMappings = {
 
 	"Half-Life": floatWithUnitPreprocessor,
 	"Lifetime": floatWithUnitPreprocessor,
+	"Quantum Numbers": quantumNumbersPreprocessor,
 	"Neutron Cross Section": floatPreprocessor,
 	"Neutron Mass Absorption": floatPreprocessor,
 	"Known Isotopes": isotopesPreprocessor,
@@ -125,9 +123,12 @@ function defaultPreprocessor (key, value) {
 	};
 }
 
+/**
+ * NOT secure against overflow or underflow!
+ */
 function integerPreprocessor (key, value) {
 	var sanitizedKey = _.camelCase(key);
-	var sanitizedValue = parseInt(value.text().replace('×10', 'e'), 10);
+	var sanitizedValue = parseInt(parseFloat(value.text().replace('×10', 'e'), 10), 10);
 
 	return {
 		key: sanitizedKey,
@@ -173,18 +174,7 @@ function floatWithUnitPreprocessor (key, value) {
 		};
 	}
 
-	var rawUnits = rawQuantity[1].trim();
-	var units;
-
-	if (rawUnits.indexOf('/') > -1) {
-		// unit is a ratio
-		units = {
-			numerator: rawUnits.split('/')[0].trim(),
-			denominator: /((\w+\s?)+)/.exec(rawUnits.split('/')[1])[0].trim()
-		};
-	} else {
-		units = rawUnits.replace('[note]', '').replace(/\(.+\)/, '').trim();
-	}
+	var units = getUnitRepresentation(rawQuantity[1]);
 
 	return {
 		key: sanitizedKey,
@@ -202,7 +192,8 @@ function floatWithUnitPreprocessor (key, value) {
  */
 function percentPreprocessor (key, value) {
 	var sanitizedKey = _.camelCase('percent ' + key.substring(5).replace("'", ''));
-	var sanitizedValue = parseFloat(value.contents().eq(0).text().replace('×10', 'e'), 10);
+	var sanitizedValue = parseFloat(value.contents().text().replace('×10', 'e'), 10);
+
 	return {
 		key: sanitizedKey,
 		value: {
@@ -220,7 +211,7 @@ function nfpaLabelPreprocessor (key, value) {
 		key: _.camelCase(key),
 		value: {
 			label: key,
-			value: value.find('img').first().attr('src')
+			value: value.find('img').first().attr('src') || null
 		}
 	}
 }
@@ -341,6 +332,27 @@ function latticeConstantsPreprocessor (key, value) {
 	};
 }
 
+function quantumNumbersPreprocessor (key, value) {
+	var sanitizedKey = _.camelCase(key);
+	var components = value.contents();
+
+	// 0: (2S+1)-value
+	// 1: J-value
+	// 2: L-Value
+
+	return {
+		key: sanitizedKey,
+		value: {
+			label: key,
+			value: {
+				spinMultiplicity: parseInt(components.eq(0).text(), 10),
+				angularMomentum: components.eq(1).text().trim(),
+				orbital: components.eq(2).text().trim()
+			}
+		}
+	};
+}
+
 /**
  * Returns the atomic numbers of all isotopes in question
  */
@@ -376,42 +388,72 @@ function isotopicAbundancesPreprocessor (key, value) {
 		key: sanitizedKey,
 		value: {
 			label: key,
-			value: sanitizedValue
+			value: Object.keys(sanitizedValue).length ? sanitizedValue : null
 		}
 	};
 }
 
 function csvPreprocessor (key, value) {
 	var sanitizedKey = _.camelCase(key);
-	var sanitizedValue = value.text().replace('[note]', '').trim().split(', ');
+	var sanitizedValue = value.text().replace('[note]', '').trim();
 
 	return {
 		key: sanitizedKey,
 		value: {
 			label: key,
-			value: sanitizedValue
+			value: sanitizedValue === 'N/A' ? null : sanitizedValue.split(', ')
 		}
 	};
 }
 
-function floatCsvPreprocessor (key, value) {
+function floatCsvWithUnitPreprocessor (key, value) {
 	var sanitizedKey = _.camelCase(key);
 	var sanitizedValue = [];
 
-	var values = value.text().replace('[note]', '').trim().split(', ');
+	var valuesText = value.text().replace('[note]', '').trim();
+
+	if (valuesText === 'N/A') {
+		return {
+			key: sanitizedKey,
+			value: {
+				label: key,
+				value: null
+			}
+		};
+	}
+
+	var values = valuesText.split(', ');
 	for (var i = 0, len = values.length; i < len; i++) {
 		var value = parseFloat(values[i].replace('×10', 'e'), 10);
-		if (!isNaN(value)) {
-			sanitizedValue.push(value);
-		}
+		sanitizedValue.push(value);
 	}
+
+	// extract unit
+	var units = getUnitRepresentation(values[values.length - 1].splitKeep(' ', 2)[1]);
 
 	return {
 		key: sanitizedKey,
 		value: {
 			label: key,
-			value: sanitizedValue
+			value: sanitizedValue,
+			units: units
 		}
 	};
 }
 
+function getUnitRepresentation (rawUnit) {
+	rawUnit = rawUnit.trim();
+	var units;
+
+	if (rawUnit.indexOf('/') > -1) {
+		// unit is a ratio
+		units = {
+			numerator: rawUnit.split('/')[0].trim(),
+			denominator: /((\w+\s?)+)/.exec(rawUnit.split('/')[1])[0].trim()
+		};
+	} else {
+		units = rawUnit.replace('[note]', '').replace(/\(.+\)/, '').trim();
+	}
+
+	return units;
+}
