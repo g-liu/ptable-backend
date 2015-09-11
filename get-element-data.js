@@ -19,10 +19,11 @@ var requiredData = [
 	'Nuclear Properties'
 ];
 
-var preproc = require('./data-preprocessors.js');
+var preproc = require('./lib/data-preprocessors');
 
 /**
- * Retrieves the element by its atomic number
+ * Retrieves the element by its atomic number, and writes
+ * to a file
  */
 function getElementByAtomicNumber (num) {
 	var formattedNum = _.padLeft(num, 3, '000');

@@ -1,5 +1,5 @@
 var cheerio = require('cheerio');
-var preproc = require('../data-preprocessors');
+var preproc = require('../lib/data-preprocessors');
 var expect = require('chai').expect;
 
 describe("Default preprocessor", function () {
@@ -646,7 +646,7 @@ describe("Discovery preprocessor", function () {
 	});
 });
 
-describe("Lattice angles preprocessor", function () {
+describe("Lattice constants preprocessor", function () {
 	it("handles single constant correctly", function () {
 		var dummyKey = "Lattice Constants";
 		var $ = cheerio.load('<td>224 pm</td>');
@@ -656,6 +656,7 @@ describe("Lattice angles preprocessor", function () {
 
 		expect(preprocRtn.key).to.equal('latticeConstants');
 		expect(preprocRtn.value.value).to.deep.equal([224]);
+		expect(preprocRtn.value.units).to.equal('pm');
 		expect(preprocRtn.value.label).to.equal('Lattice Constants');
 	});
 
@@ -670,6 +671,7 @@ describe("Lattice angles preprocessor", function () {
 
 		expect(preprocRtn.key).to.equal('latticeConstants');
 		expect(preprocRtn.value.value).to.deep.equal([224]);
+		expect(preprocRtn.value.units).to.equal('pm');
 		expect(preprocRtn.value.label).to.equal('Lattice Constants');
 	});
 
@@ -687,6 +689,7 @@ describe("Lattice angles preprocessor", function () {
 			330.4,
 			111.1111
 		]);
+		expect(preprocRtn.value.units).to.equal('pm');
 		expect(preprocRtn.value.label).to.equal('Lattice Constants');
 	});
 
@@ -706,6 +709,7 @@ describe("Lattice angles preprocessor", function () {
 			330.4,
 			111.1111
 		]);
+		expect(preprocRtn.value.units).to.equal('pm');
 		expect(preprocRtn.value.label).to.equal('Lattice Constants');
 	});
 
@@ -718,6 +722,7 @@ describe("Lattice angles preprocessor", function () {
 
 		expect(preprocRtn.key).to.equal('latticeConstants');
 		expect(preprocRtn.value.value).to.be.null;
+		expect(preprocRtn.value.units).to.be.undefined;
 		expect(preprocRtn.value.label).to.equal('Lattice Constants');
 	});
 
@@ -732,6 +737,7 @@ describe("Lattice angles preprocessor", function () {
 
 		expect(preprocRtn.key).to.equal('latticeConstants');
 		expect(preprocRtn.value.value).to.be.null;
+		expect(preprocRtn.value.units).to.be.undefined;
 		expect(preprocRtn.value.label).to.equal('Lattice Constants');
 	});
 });
