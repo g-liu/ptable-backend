@@ -56,12 +56,16 @@ function getElementByAtomicNumber (num) {
 				});
 		}
 
+		if (!fs.existsSync('data/')) {
+			fs.mkdirSync('data');
+		}
+
 		fs.writeFile('data/' + formattedNum + '.json',
 			JSON.stringify(elementProperties, null, 4),
 			function (err) {
 				if (err) throw err;
 				console.log("Saved result for element", num);
-			});	
+			});
 	});
 }
 
